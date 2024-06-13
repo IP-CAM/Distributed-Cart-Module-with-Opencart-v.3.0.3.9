@@ -171,6 +171,14 @@ class ControllerCommonColumnLeft extends Controller {
 				);
 			}
 
+            if ($this->user->hasPermission('access', 'extension/module/distributed_cart') && $this->config->get('module_distributed_cart_status')) {
+                $marketplace[] = array(
+                    'name'	   => $this->language->get('text_distributed_cart'),
+                    'href'     => '',
+                    'children' => array()
+                );
+            }
+
 			if ($marketplace) {
 				$data['menus'][] = array(
 					'id'       => 'menu-extension',
