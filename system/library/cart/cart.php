@@ -331,6 +331,16 @@ class Cart {
 		return $total;
 	}
 
+    public function getSubTotalByProducts($products) {
+        $total = 0;
+
+        foreach ($products as $product) {
+            $total += $product['total'];
+        }
+
+        return $total;
+    }
+
 	public function getTaxes() {
 		$tax_data = array();
 
@@ -350,6 +360,26 @@ class Cart {
 
 		return $tax_data;
 	}
+
+    public function getTaxesByProducts($products) {
+        $tax_data = array();
+
+        foreach ($products as $product) {
+            if ($product['tax_class_id']) {
+                $tax_rates = $this->tax->getRates($product['price'], $product['tax_class_id']);
+
+                foreach ($tax_rates as $tax_rate) {
+                    if (!isset($tax_data[$tax_rate['tax_rate_id']])) {
+                        $tax_data[$tax_rate['tax_rate_id']] = ($tax_rate['amount'] * $product['quantity']);
+                    } else {
+                        $tax_data[$tax_rate['tax_rate_id']] += ($tax_rate['amount'] * $product['quantity']);
+                    }
+                }
+            }
+        }
+
+        return $tax_data;
+    }
 
 	public function getTotal() {
 		$total = 0;

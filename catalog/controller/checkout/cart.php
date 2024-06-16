@@ -52,6 +52,7 @@ class ControllerCheckoutCart extends Controller {
 
 			$this->load->model('tool/image');
 			$this->load->model('tool/upload');
+            $this->load->model('catalog/product');
 
 			$data['products'] = array();
 
@@ -131,20 +132,31 @@ class ControllerCheckoutCart extends Controller {
 				}
 
 				$data['products'][] = array(
-					'cart_id'   => $product['cart_id'],
-					'thumb'     => $image,
-					'name'      => $product['name'],
-					'model'     => $product['model'],
-					'option'    => $option_data,
-					'recurring' => $recurring,
-					'quantity'  => $product['quantity'],
-					'stock'     => $product['stock'] ? true : !(!$this->config->get('config_stock_checkout') || $this->config->get('config_stock_warning')),
-					'reward'    => ($product['reward'] ? sprintf($this->language->get('text_points'), $product['reward']) : ''),
-					'price'     => $price,
-					'total'     => $total,
-					'href'      => $this->url->link('product/product', 'product_id=' . $product['product_id'])
+					'cart_id'      => $product['cart_id'],
+					'thumb'        => $image,
+					'name'         => $product['name'],
+					'model'        => $product['model'],
+					'option'       => $option_data,
+					'recurring'    => $recurring,
+					'quantity'     => $product['quantity'],
+					'stock'        => $product['stock'] ? true : !(!$this->config->get('config_stock_checkout') || $this->config->get('config_stock_warning')),
+					'reward'       => ($product['reward'] ? sprintf($this->language->get('text_points'), $product['reward']) : ''),
+                    'tax_class_id' => $product['tax_class_id'],
+					'price'        => (float)$price,
+					'total'        => (int)$total,
+					'href'         => $this->url->link('product/product', 'product_id=' . $product['product_id']),
+                    'manufacturer' => $this->model_catalog_product->getProduct($product['product_id'])['manufacturer']
 				);
 			}
+
+            // Grouped products by manu
+            $data['grouped_products'] = array();
+            foreach ($data['products'] as $product) {
+                $manufacturer = $product['manufacturer'];
+                if (!isset($data['grouped_products'][$manufacturer]))
+                    $data['grouped_products'][$manufacturer] = array();
+                $data['grouped_products'][$manufacturer]['products'][] = $product;
+            }
 
 			// Gift Voucher
 			$data['vouchers'] = array();
@@ -166,14 +178,14 @@ class ControllerCheckoutCart extends Controller {
 			$totals = array();
 			$taxes = $this->cart->getTaxes();
 			$total = 0;
-			
-			// Because __call can not keep var references so we put them into an array. 			
+
+			// Because __call can not keep var references so we put them into an array.
 			$total_data = array(
 				'totals' => &$totals,
 				'taxes'  => &$taxes,
 				'total'  => &$total
 			);
-			
+
 			// Display prices
 			if ($this->customer->isLogged() || !$this->config->get('config_customer_price')) {
 				$sort_order = array();
@@ -189,7 +201,7 @@ class ControllerCheckoutCart extends Controller {
 				foreach ($results as $result) {
 					if ($this->config->get('total_' . $result['code'] . '_status')) {
 						$this->load->model('extension/total/' . $result['code']);
-						
+
 						// We have to put the totals in an array so that they pass by reference.
 						$this->{'model_extension_total_' . $result['code']}->getTotal($total_data);
 					}
