@@ -44,12 +44,6 @@ class ControllerCheckoutCart extends Controller {
 
 			$data['action'] = $this->url->link('checkout/cart/edit', '', true);
 
-			if ($this->config->get('config_cart_weight')) {
-				$data['weight'] = $this->weight->format($this->cart->getWeight(), $this->config->get('config_weight_class_id'), $this->language->get('decimal_point'), $this->language->get('thousand_point'));
-			} else {
-				$data['weight'] = '';
-			}
-
 			$this->load->model('tool/image');
 			$this->load->model('tool/upload');
             $this->load->model('catalog/product');
@@ -132,30 +126,98 @@ class ControllerCheckoutCart extends Controller {
 				}
 
 				$data['products'][] = array(
-					'cart_id'      => $product['cart_id'],
-					'thumb'        => $image,
-					'name'         => $product['name'],
-					'model'        => $product['model'],
-					'option'       => $option_data,
-					'recurring'    => $recurring,
-					'quantity'     => $product['quantity'],
-					'stock'        => $product['stock'] ? true : !(!$this->config->get('config_stock_checkout') || $this->config->get('config_stock_warning')),
-					'reward'       => ($product['reward'] ? sprintf($this->language->get('text_points'), $product['reward']) : ''),
-                    'tax_class_id' => $product['tax_class_id'],
-					'price'        => (float)$price,
-					'total'        => (int)$total,
-					'href'         => $this->url->link('product/product', 'product_id=' . $product['product_id']),
-                    'manufacturer' => $this->model_catalog_product->getProduct($product['product_id'])['manufacturer']
+					'cart_id'         => $product['cart_id'],
+					'thumb'           => $image,
+					'name'            => $product['name'],
+					'model'           => $product['model'],
+                    'shipping'        => $product['shipping'],
+					'option'          => $option_data,
+					'recurring'       => $recurring,
+					'quantity'        => $product['quantity'],
+					'stock'           => $product['stock'] ? true : !(!$this->config->get('config_stock_checkout') || $this->config->get('config_stock_warning')),
+					'reward'          => ($product['reward'] ? sprintf($this->language->get('text_points'), $product['reward']) : ''),
+                    'tax_class_id'    => $product['tax_class_id'],
+                    'weight'          => $product['weight'],
+                    'weight_class_id' => $product['weight_class_id'],
+					'price'           => (float)$price,
+					'total'           => (int)$total,
+					'href'            => $this->url->link('product/product', 'product_id=' . $product['product_id']),
+                    'manufacturer'    => $this->model_catalog_product->getProduct($product['product_id'])['manufacturer']
 				);
 			}
 
-            // Grouped products by manu
+            // Grouped products by manufacturer
             $data['grouped_products'] = array();
             foreach ($data['products'] as $product) {
                 $manufacturer = $product['manufacturer'];
                 if (!isset($data['grouped_products'][$manufacturer]))
                     $data['grouped_products'][$manufacturer] = array();
                 $data['grouped_products'][$manufacturer]['products'][] = $product;
+            }
+
+            // Group weight
+            foreach ($data['grouped_products'] as &$group) {
+                if ($this->config->get('config_cart_weight')) {
+                    $group['weight'] = $this->weight->format($this->cart->getWeightByProducts($group['products']), $this->config->get('config_weight_class_id'), $this->language->get('decimal_point'), $this->language->get('thousand_point'));
+                } else {
+                    $group['weight'] = '';
+                }
+            }
+            unset($group);
+
+            // Group totals
+            // Error with *** in list
+            foreach ($data['grouped_products'] as &$group) {
+                $this->load->model('setting/extension');
+
+                $totals = array();
+                $taxes = $this->cart->getTaxesByProducts($group['products']);
+                $total = 0;
+
+                $total_data = array(
+                    'totals' => &$totals,
+                    'taxes'  => &$taxes,
+                    'total'  => &$total
+                );
+
+                // Display prices
+                if ($this->customer->isLogged() || !$this->config->get('config_customer_price')) {
+                    $sort_order = array();
+
+                    $results = $this->model_setting_extension->getExtensions('total');
+
+                    foreach ($results as $key => $value) {
+                        $sort_order[$key] = $this->config->get('total_' . $value['code'] . '_sort_order');
+                    }
+
+                    array_multisort($sort_order, SORT_ASC, $results);
+
+                    foreach ($results as $result) {
+                        if ($this->config->get('total_' . $result['code'] . '_status')) {
+                            $this->load->model('extension/total/' . $result['code']);
+
+                            // We have to put the totals in an array so that they pass by reference.
+                            $this->{'model_extension_total_' . $result['code']}->getTotalByProducts($total_data, $group['products']);
+                        }
+                    }
+
+                    $sort_order = array();
+
+                    foreach ($totals as $key => $value) {
+                        $sort_order[$key] = $value['sort_order'];
+                    }
+
+                    array_multisort($sort_order, SORT_ASC, $totals);
+                }
+
+                $group['totals'] = array();
+
+                foreach ($totals as $total) {
+                    $group['totals'][] = array(
+                        'title' => $total['title'],
+                        'text'  => $this->currency->format($total['value'], $this->session->data['currency'])
+                    );
+                }
             }
 
 			// Gift Voucher

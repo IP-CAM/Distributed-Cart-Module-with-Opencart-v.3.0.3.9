@@ -21,6 +21,10 @@ class ModelExtensionTotalCredit extends Model {
 		}
 	}
 
+    public function getTotalByProducts($products) {
+
+    }
+
 	public function confirm($order_info, $order_total) {
 		$this->load->language('extension/total/credit');
 

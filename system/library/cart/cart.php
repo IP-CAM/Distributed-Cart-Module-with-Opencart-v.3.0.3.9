@@ -321,6 +321,18 @@ class Cart {
 		return $weight;
 	}
 
+    public function getWeightByProducts($products) {
+        $weight = 0;
+
+        foreach ($products as $product) {
+            if ($product['shipping']) {
+                $weight += $this->weight->convert($product['weight'], $product['weight_class_id'], $this->config->get('config_weight_class_id'));
+            }
+        }
+
+        return $weight;
+    }
+
 	public function getSubTotal() {
 		$total = 0;
 

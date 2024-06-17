@@ -24,4 +24,8 @@ class ModelExtensionTotalShipping extends Model {
 			$total['total'] += $this->session->data['shipping_method']['cost'];
 		}
 	}
+
+    public function getTotalByProducts($products) {
+
+    }
 }
