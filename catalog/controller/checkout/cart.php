@@ -96,8 +96,8 @@ class ControllerCheckoutCart extends Controller {
 				if ($this->customer->isLogged() || !$this->config->get('config_customer_price')) {
 					$unit_price = $this->tax->calculate($product['price'], $product['tax_class_id'], $this->config->get('config_tax'));
 					
-					$price = $this->currency->format($unit_price, $this->session->data['currency']);
-					$total = $this->currency->format($unit_price * $product['quantity'], $this->session->data['currency']);
+					$price = $unit_price;
+					$total = $unit_price * $product['quantity'];
 				} else {
 					$price = false;
 					$total = false;
@@ -140,13 +140,13 @@ class ControllerCheckoutCart extends Controller {
                     'weight'          => $product['weight'],
                     'weight_class_id' => $product['weight_class_id'],
 					'price'           => (float)$price,
-					'total'           => (int)$total,
+					'total'           => $total,
 					'href'            => $this->url->link('product/product', 'product_id=' . $product['product_id']),
                     'manufacturer'    => $this->model_catalog_product->getProduct($product['product_id'])['manufacturer']
 				);
 			}
 
-            // Grouped products by manufacturer
+            // Group products by manufacturer
             $data['grouped_products'] = array();
             foreach ($data['products'] as $product) {
                 $manufacturer = $product['manufacturer'];
@@ -166,7 +166,6 @@ class ControllerCheckoutCart extends Controller {
             unset($group);
 
             // Group totals
-            // Error with *** in list
             foreach ($data['grouped_products'] as &$group) {
                 $this->load->model('setting/extension');
 
